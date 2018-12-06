@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -109,10 +110,11 @@ func (p *Authenticator) validateRedirectURI(f http.HandlerFunc) http.HandlerFunc
 		err := req.ParseForm()
 		if err != nil {
 			p.ErrorResponse(rw, req, err.Error(), http.StatusBadRequest)
+			// add better error because <3
 			return
 		}
 		redirectURI := req.Form.Get("redirect_uri")
-		if !validRedirectURI(redirectURI, p.ProxyRootDomains) {
+		if err = validRedirectURI(redirectURI, p.ProxyRootDomains); err != nil {
 			tags = append(tags, "error:invalid_redirect_parameter")
 			p.StatsdClient.Incr("application_error", tags, 1.0)
 			p.ErrorResponse(rw, req, "Invalid redirect parameter", http.StatusBadRequest)
@@ -123,17 +125,19 @@ func (p *Authenticator) validateRedirectURI(f http.HandlerFunc) http.HandlerFunc
 	}
 }
 
-func validRedirectURI(uri string, rootDomains []string) bool {
+func validRedirectURI(uri string, rootDomains []string) error {
 	redirectURL, err := url.Parse(uri)
 	if uri == "" || err != nil || redirectURL.Host == "" {
-		return false
+		// return actual error here! verbosity is <3
+		return errors.New("Redirect URL is invalid and cannot be parsed.")
 	}
 	for _, domain := range rootDomains {
 		if strings.HasSuffix(redirectURL.Hostname(), domain) {
-			return true
+			return nil
 		}
 	}
-	return false
+	// return actual error here! verbosity is <3
+	return errors.New("Redirect URL is not a valid PROXY_ROOT_DOMAIN.")
 }
 
 func (p *Authenticator) validateSignature(f http.HandlerFunc) http.HandlerFunc {

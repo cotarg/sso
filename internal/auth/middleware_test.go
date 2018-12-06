@@ -274,6 +274,11 @@ func TestValidateRedirectURI(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			signatureSecret:    "clientSecret",
 		},
+		{
+			name:               "error from issue 101",
+			redirectURI:        "http://grafana.service.int.mydomain.com/oauth2/callback",
+			expectedStatusCode: http.StatusBadRequest,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
